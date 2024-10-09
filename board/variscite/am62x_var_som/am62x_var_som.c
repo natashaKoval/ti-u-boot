@@ -70,7 +70,7 @@ phys_size_t get_effective_memsize(void)
 	 * all reserved memories.
 	 */
 	if (gd->ram_size == SZ_512M)
-		ram_size = SZ_512M - SZ_64M;
+		ram_size = SZ_512M - SZ_64M - SZ_32M;
 	else
 		ram_size = gd->ram_size;
 
