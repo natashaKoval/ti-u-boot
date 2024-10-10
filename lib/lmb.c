@@ -156,7 +156,7 @@ void arch_lmb_reserve_generic(struct lmb *lmb, ulong sp, ulong end, ulong align)
 	 * until end of U-Boot area using LMB to prevent U-Boot from overwriting
 	 * that memory.
 	 */
-	debug("## Current stack ends at 0x%08lx ", sp);
+	printf("## Current stack ends at 0x%08lx ", sp);
 
 	/* adjust sp by 4K to be safe */
 	sp -= align;
@@ -172,10 +172,13 @@ void arch_lmb_reserve_generic(struct lmb *lmb, ulong sp, ulong end, ulong align)
 		if (bank_end > end)
 			bank_end = end - 1;
 
+		printf("Reserve generic: sp=0x%llx size=0x%08llx \n", sp, bank_end - sp + 1);
 		lmb_reserve(lmb, sp, bank_end - sp + 1);
 
-		if (gd->flags & GD_FLG_SKIP_RELOC)
+		if (gd->flags & GD_FLG_SKIP_RELOC) {
 			lmb_reserve(lmb, (phys_addr_t)(uintptr_t)_start, gd->mon_len);
+			printf("Reserve generic when GD_FLG_SKIP_RELOC: start=0x%llx size=0x%08llx \n", (phys_addr_t)(uintptr_t)_start, gd->mon_len);
+		}
 
 		break;
 	}
@@ -202,6 +205,7 @@ static __maybe_unused int efi_lmb_reserve(struct lmb *lmb)
 
 	for (i = 0, map = memmap; i < map_size / sizeof(*map); ++map, ++i) {
 		if (map->type != EFI_CONVENTIONAL_MEMORY) {
+			printf("EFI memory LMB reservation: base=0x%llx size=0x%08llx bytes\n", map_to_sysmem((void *)(uintptr_t)map->physical_start), map->num_pages * EFI_PAGE_SIZE);
 			lmb_reserve_flags(lmb,
 					  map_to_sysmem((void *)(uintptr_t)
 							map->physical_start),
@@ -220,11 +224,15 @@ static void lmb_reserve_common(struct lmb *lmb, void *fdt_blob)
 	arch_lmb_reserve(lmb);
 	board_lmb_reserve(lmb);
 
-	if (CONFIG_IS_ENABLED(OF_LIBFDT) && fdt_blob)
+	if (CONFIG_IS_ENABLED(OF_LIBFDT) && fdt_blob) {
+		printf("LMB reserve common: fdt reserve regions\n");
 		boot_fdt_add_mem_rsv_regions(lmb, fdt_blob);
+	}
 
-	if (CONFIG_IS_ENABLED(EFI_LOADER))
+	if (CONFIG_IS_ENABLED(EFI_LOADER)) {
+		printf("LMB reserve common: EFI LMB reserve\n");
 		efi_lmb_reserve(lmb);
+	}
 }
 
 /* Initialize the struct, add memory and call arch/board reserve functions */
@@ -260,6 +268,7 @@ static long lmb_add_region_flags(struct lmb_region *rgn, phys_addr_t base,
 	unsigned long coalesced = 0;
 	long adjacent, i;
 
+	printf("Add region at base=0x%llx size=0x%08llx bytes flags: %x\n", base, size, flags);
 	if (rgn->cnt == 0) {
 		rgn->region[0].base = base;
 		rgn->region[0].size = size;
@@ -275,12 +284,16 @@ static long lmb_add_region_flags(struct lmb_region *rgn, phys_addr_t base,
 		phys_size_t rgnflags = rgn->region[i].flags;
 		phys_addr_t end = base + size - 1;
 		phys_addr_t rgnend = rgnbase + rgnsize - 1;
+		printf("rgnnumber=%lu rgnbase=0x%llx rgnend=0x%llx rgnsize=0x%08llx bytes rgnflags: %x max regions=%lu\n", i, rgnbase, rgnend, rgnsize, rgnflags, rgn->max);
 		if (rgnbase <= base && end <= rgnend) {
-			if (flags == rgnflags)
+			if (flags == rgnflags) {
+				printf("Already have this region, so we're done\n");
 				/* Already have this region, so we're done */
 				return 0;
-			else
+			} else {
+				printf("regions flags do not match\n");
 				return -1; /* regions with new flags */
+			}
 		}
 
 		adjacent = lmb_addrs_adjacent(base, size, rgnbase, rgnsize);
@@ -299,6 +312,7 @@ static long lmb_add_region_flags(struct lmb_region *rgn, phys_addr_t base,
 			break;
 		} else if (lmb_addrs_overlap(base, size, rgnbase, rgnsize)) {
 			/* regions overlap */
+			printf("regions overlap: base=0x%llx size=0x%08llx with rgnbase=0x%llx rgnsize=0x%08llx!\n", base, size, rgnbase, rgnsize);
 			return -1;
 		}
 	}
@@ -404,6 +418,7 @@ long lmb_free(struct lmb *lmb, phys_addr_t base, phys_size_t size)
 	 * beginging of the hole and add the region after hole.
 	 */
 	rgn->region[i].size = base - rgn->region[i].base;
+	printf("Reserve while freeing: base=0x%llx size=0x%08llx bytes\n", end + 1, rgnend - end);
 	return lmb_add_region_flags(rgn, end + 1, rgnend - end,
 				    rgn->region[i].flags);
 }
@@ -445,6 +460,7 @@ phys_addr_t lmb_alloc_base(struct lmb *lmb, phys_size_t size, ulong align, phys_
 {
 	phys_addr_t alloc;
 
+	printf("LBM alloc base: size=0x%lx bytes below 0x%lx.\n", (ulong)size, (ulong)max_addr);
 	alloc = __lmb_alloc_base(lmb, size, align, max_addr);
 
 	if (alloc == 0)

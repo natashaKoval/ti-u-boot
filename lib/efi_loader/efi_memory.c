@@ -819,14 +819,14 @@ efi_status_t efi_add_conventional_memory_map(u64 ram_start, u64 ram_end,
 	/* Remove partial pages */
 	ram_end &= ~EFI_PAGE_MASK;
 	ram_start = (ram_start + EFI_PAGE_MASK) & ~EFI_PAGE_MASK;
-
+	printf("EFI adding conventional memory: start=0x%llx end=0x%llx top=0x%llx \n", ram_start, ram_end, ram_top);
 	if (ram_end <= ram_start) {
 		/* Invalid mapping */
 		return EFI_INVALID_PARAMETER;
 	}
 
 	pages = (ram_end - ram_start) >> EFI_PAGE_SHIFT;
-
+	printf("EFI memory reservation: base=0x%llx size=0x%08llx bytes\n", ram_start, pages);
 	efi_add_memory_map_pg(ram_start, pages,
 			      EFI_CONVENTIONAL_MEMORY, false);
 
@@ -838,11 +838,13 @@ efi_status_t efi_add_conventional_memory_map(u64 ram_start, u64 ram_end,
 	 */
 	if (ram_top < ram_start) {
 		/* ram_top is before this region, reserve all */
+		printf("EFI memory reservation up to end: base=0x%llx size=0x%08llx bytes\n", ram_start, pages);
 		efi_add_memory_map_pg(ram_start, pages,
 				      EFI_BOOT_SERVICES_DATA, true);
 	} else if (ram_top < ram_end) {
 		/* ram_top is inside this region, reserve parts */
 		pages = (ram_end - ram_top) >> EFI_PAGE_SHIFT;
+		printf("EFI memory reservation when ram_top inside: base=0x%llx size=0x%08llx bytes\n", ram_top, pages);
 
 		efi_add_memory_map_pg(ram_top, pages,
 				      EFI_BOOT_SERVICES_DATA, true);
@@ -877,7 +879,7 @@ __weak void efi_add_known_memory(void)
 
 		ram_start = (uintptr_t)map_sysmem(gd->bd->bi_dram[i].start, 0);
 		ram_end = ram_start + gd->bd->bi_dram[i].size;
-
+		printf("EFI adding known memory: start=0x%llx end=0x%llx top=0x%llx \n", ram_start, ram_end, ram_top);
 		efi_add_conventional_memory_map(ram_start, ram_end, ram_top);
 	}
 }
