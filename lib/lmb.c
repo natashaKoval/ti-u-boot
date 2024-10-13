@@ -266,7 +266,7 @@ static long lmb_add_region_flags(struct lmb_region *rgn, phys_addr_t base,
 				 phys_size_t size, enum lmb_flags flags)
 {
 	unsigned long coalesced = 0;
-	long adjacent, i;
+	long adjacent, i, idx;
 
 	printf("Add region at base=0x%llx size=0x%08llx bytes flags: %x\n", base, size, flags);
 	if (rgn->cnt == 0) {
@@ -307,6 +307,21 @@ static long lmb_add_region_flags(struct lmb_region *rgn, phys_addr_t base,
 		} else if (adjacent < 0) {
 			if (flags != rgnflags)
 				break;
+			/* The region however may overlap with other regions
+			 * along the size we are going to add here, and those regions
+			 * may also have flags other than this region flag */
+
+			/* Move the index to the next possible overlapping region*/
+			idx = i + 1;
+			while (idx < rgn->cnt) {
+				rgnbase = rgn->region[idx].base;
+				rgnsize = rgn->region[idx].size;
+				printf("check overlap with this region: number=%lu base=0x%llx size=0x%08llx bytes, total regions=%lu\n", idx, rgnbase, rgnsize, rgn->cnt);
+				if (lmb_addrs_overlap(base, size, rgnbase, rgnsize)) {
+					return -1;
+				}
+				idx++;
+			}
 			rgn->region[i].size += size;
 			coalesced++;
 			break;
