@@ -33,8 +33,8 @@ int var_eeprom_get_dram_size(struct var_eeprom *ep, uint64_t *size)
 		return 0;
 	}
 
-//	*size = ((uint64_t)ep->dramsize * 128UL) * (1UL << 20);
-	*size = SZ_512M;
+	*size = ((uint64_t)ep->dramsize * 128UL) * (1UL << 20);
+
 	return 0;
 }
 
