@@ -192,6 +192,11 @@ int board_late_init(void)
 			(int) (gd->ram_size / 1024 / 1024));
 	env_set("sdram_size", sdram_size_str);
 
+	/* When the DRAM size is 512MB, set the fdt relocation address
+	* to leave the contiguous memory region needed for CMA*/
+	if (gd->ram_size == SZ_512M)
+		env_set("fdt_high", "0x8e000000");
+
 #ifdef CONFIG_ENV_IS_IN_MMC
 	board_late_mmc_env_init();
 #endif
